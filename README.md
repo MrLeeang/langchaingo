@@ -50,32 +50,21 @@ func main() {
     // Initialize MCP tools
     tools, err := mcp.InitializeMCP(ctx, configs)
     if err != nil {
-        log.Fatalf("Failed to initialize MCP: %v", err)
+        panic(err)
     }
 
-    llm, err := openai.New(
-		openai.WithBaseURL(""),
-		openai.WithToken(""),
-		openai.WithModel(""),
+    // Initialize LLM with DeepSeek
+	llm, err := openai.New(
+		openai.WithBaseURL("https://api.deepseek.com/v1"),
+		openai.WithToken("sk-deepseek-your-token"),
+		openai.WithModel("deepseek-chat"),
 	)
 
-    // Use the tools in your langchaingo application
-	mem := memory.NewSimple()
-
-	agent, err := agents.Initialize(
-		llm,
-		tools,
-		agents.ZeroShotReactDescription,
-		agents.WithMemory(mem),
+    agent := agents.NewExecutor(
+		agents.NewConversationalAgent(llm, tools),
 	)
 
-    if err != nil {
-		panic(err)
-	}
-
-    systemPrompt := "你是一个善于调用外部工具的智能体。始终优先调用可用的 MCP 工具来获取准确答案；只有在没有合适工具时才进行直接推理。回答要简洁，并在需要时串联多个工具。"
-
-    prompt := systemPrompt + "\n\n用户问题: 获取最新的北京时间。"
+    prompt := "Get the latest Beijing time."
 
     result, err := chains.Run(
 		ctx,

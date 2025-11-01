@@ -18,21 +18,21 @@ func newTransportFromSpec(spec ConnSpec) (mcpxport.Interface, error) {
 	switch spec.Transport {
 	case "sse":
 		if spec.Endpoint == "" {
-			return nil, fmt.Errorf("sse 需要 endpoint")
+			return nil, fmt.Errorf("endpoint is required for sse transport")
 		}
 		return mcpxport.NewSSE(spec.Endpoint)
 	case "streamable_http":
 		if spec.Endpoint == "" {
-			return nil, fmt.Errorf("streamable_http 需要 endpoint")
+			return nil, fmt.Errorf("endpoint is required for streamable_http transport")
 		}
 		return mcpxport.NewStreamableHTTP(spec.Endpoint)
 	case "stdio":
 		if spec.Command == "" {
-			return nil, fmt.Errorf("stdio 需要 command")
+			return nil, fmt.Errorf("command is required for stdio transport")
 		}
 		tr := mcpxport.NewStdio(spec.Command, spec.Args, []string{}...)
 		return tr, nil
 	default:
-		return nil, fmt.Errorf("不支持的传输: %s", spec.Transport)
+		return nil, fmt.Errorf("unsupported transport type: %s", spec.Transport)
 	}
 }

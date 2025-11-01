@@ -22,19 +22,19 @@ func (t *Tool) Name() string {
 }
 
 func (t *Tool) Description() string {
-	desc := fmt.Sprintf("\n工具名称: %s，描述: %s, 参数: %s", t.RemoteName, t.RemoteDesc, t.Args)
+	desc := fmt.Sprintf("\nname: %s，desc: %s, args_schema: %s", t.RemoteName, t.RemoteDesc, t.Args)
 	return desc
 }
 
 func (t *Tool) Call(ctx context.Context, input string) (string, error) {
 	transport, err := newTransportFromSpec(t.Conn)
 	if err != nil {
-		return "", fmt.Errorf("创建传输失败: %w", err)
+		return "", err
 	}
 
 	c := mcpclient.NewClient(transport)
 	if err := c.Start(ctx); err != nil {
-		return "", fmt.Errorf("启动客户端失败: %w", err)
+		return "", err
 	}
 	defer c.Close()
 
@@ -45,10 +45,10 @@ func (t *Tool) Call(ctx context.Context, input string) (string, error) {
 		},
 	}
 	if _, err := c.Initialize(ctx, initReq); err != nil {
-		return "", fmt.Errorf("初始化失败: %w", err)
+		return "", err
 	}
 
-	// 尝试把 input 当作 JSON 参数解析，否则放到 "input" 字段
+	// prepare args, try to parse input as json or put it in "input" field
 	var args map[string]any
 	if err := json.Unmarshal([]byte(input), &args); err != nil || args == nil {
 		args = map[string]any{"input": input}
@@ -56,16 +56,32 @@ func (t *Tool) Call(ctx context.Context, input string) (string, error) {
 
 	result, err := c.CallTool(ctx, mcp.CallToolRequest{Params: mcp.CallToolParams{Name: t.RemoteName, Arguments: args}})
 	if err != nil {
-		return "", fmt.Errorf("调用远端工具 %s 失败: %w", t.RemoteName, err)
+		return "", err
 	}
-	// 返回首个文本片段（如无文本则返回摘要）
+
+	// return first text content found
 	for _, part := range result.Content {
+		// Can be TextContent, ImageContent, AudioContent, or EmbeddedResource
 		switch v := part.(type) {
 		case mcp.TextContent:
 			return v.Text, nil
 		case *mcp.TextContent:
 			return v.Text, nil
+		case mcp.ImageContent:
+			return v.Data, nil
+		case *mcp.ImageContent:
+			return v.Data, nil
+		case mcp.AudioContent:
+			return v.Data, nil
+		case *mcp.AudioContent:
+			return v.Data, nil
+			// case mcp.EmbeddedResource:
+			// 	return v.Resource, nil
+			// case *mcp.EmbeddedResource:
+			// 	return v.Resource, nil
 		}
 	}
-	return fmt.Sprintf("工具 %s 已返回 %d 段内容（非纯文本）", t.RemoteName, len(result.Content)), nil
+
+	// return "" if no text content found
+	return "", nil
 }

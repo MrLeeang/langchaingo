@@ -13,6 +13,8 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
+git tag -d $version
+git push origin --delete $version
 
 echo "Version: $version"
 
